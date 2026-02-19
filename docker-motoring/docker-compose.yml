@@ -1,0 +1,49 @@
+services:
+  api:
+    image: medical-api-image  # Chỉ để dòng này, không để dòng build
+    container_name: medical-api
+    ports:
+      - "8000:8000"
+    logging:
+      driver: "json-file"
+      options:
+        tag: "{{.Name}}"
+    # Các service khác (prometheus, loki, grafana...) giữ nguyên bên dưới
+  # Prometheus - Truy cập tại localhost:9090
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: medical-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  # Loki - Lưu trữ log
+  loki:
+    image: grafana/loki:latest
+    container_name: medical-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  # Promtail - Thu thập log từ Docker và đẩy về Loki
+  promtail:
+    image: grafana/promtail:latest
+    container_name: medical-promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+
+  # Grafana - Truy cập tại localhost:3000
+  grafana:
+    image: grafana/grafana:latest
+    container_name: medical-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    depends_on:
+      - prometheus
+      - loki
