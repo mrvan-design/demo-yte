@@ -1,10 +1,3 @@
-# Stage 1: Build stage
-FROM python:3.10-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y gcc libpq-dev
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-
 # Stage 2: Final stage
 FROM python:3.10-slim
 WORKDIR /app
@@ -14,13 +7,19 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 libsm6 libxext6 libxrender1 libgl1 libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Tạo user mới để không chạy bằng root
+# 1. Tạo user nhưng CHƯA switch sang ngay
 RUN useradd -m medicaluser
+
+# 2. Copy thư viện và gán quyền sở hữu cho medicaluser
+COPY --from=builder /root/.local /home/medicaluser/.local
+# Dùng flag --chown để gán quyền ngay khi copy code vào /app
+COPY --chown=medicaluser:medicaluser . .
+
+# 3. Đảm bảo thư mục app thuộc về medicaluser để os.makedirs hoạt động
+RUN chown -R medicaluser:medicaluser /app
+
 USER medicaluser
 
-# Copy thư viện từ builder stage
-COPY --from=builder /root/.local /home/medicaluser/.local
-COPY . .
-
 ENV PATH=/home/medicaluser/.local/bin:$PATH
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Lưu ý: Port app của bạn ở Playbook là 8080, hãy khớp port ở đây
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
