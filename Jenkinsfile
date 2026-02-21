@@ -19,7 +19,7 @@ pipeline {
             steps {
                 // Sửa biến PWD thành \$(pwd) để Docker hiểu đúng đường dẫn host
                 // Thêm || true nếu bạn muốn pipeline vẫn chạy tiếp dù code có lỗi bảo mật (không khuyến khích khi đã lên prod)
-                sh "docker run --rm -v $(pwd):/src semgrep/semgrep semgrep scan --config auto || true"
+                sh 'docker run --rm -v $(pwd):/src semgrep/semgrep semgrep scan --config auto || true'
             }
         }
 
