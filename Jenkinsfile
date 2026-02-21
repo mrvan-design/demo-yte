@@ -19,7 +19,8 @@ pipeline {
  stage('Static Analysis (Semgrep)') {
             steps {
                 // Thêm "|| true" vào cuối lệnh sh
-                sh 'docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep scan --config=auto --error || true'
+                sh 'docker run -v "${PWD}:/src" semgrep/semgrep semgrep scan --config auto'
+
             }
         }
 
