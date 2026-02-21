@@ -15,16 +15,17 @@ pipeline {
             }
         }
 
-       stage('Static Analysis (Semgrep)') {
+   stage('Static Analysis (Semgrep)') {
     steps {
         sh '''
         docker run --rm \
           -v $WORKSPACE:/src \
           semgrep/semgrep \
-          semgrep scan --config auto /src || true
+          semgrep scan --config auto --no-git-ignore /src || true
         '''
     }
 }
+
 
 
 
