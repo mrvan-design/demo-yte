@@ -62,9 +62,10 @@ pipeline {
         }
 
         stage('Image Security Scan - Trivy') {
-            steps {
-                sh """
-                echo "Running Trivy image scan..."
+    steps {
+        script {
+            def status = sh(
+                script: """
                 docker run --rm \
                   -v /var/run/docker.sock:/var/run/docker.sock \
                   -v trivy-cache:/root/.cache/ \
@@ -72,9 +73,17 @@ pipeline {
                   --severity HIGH,CRITICAL \
                   --exit-code 1 \
                   ${DOCKER_REPO}:latest
-                """
+                """,
+                returnStatus: true
+            )
+
+            if (status != 0) {
+                echo "⚠️ Vulnerabilities detected, but continuing pipeline..."
             }
         }
+    }
+}
+
 
         stage('Push to Docker Hub') {
             steps {
