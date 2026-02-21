@@ -1,0 +1,40 @@
+---
+- name: CHỈ DEPLOY APP PYTHON LÊN EC2
+  hosts: all
+  gather_facts: no
+  become: yes
+  remote_user: ec2-user
+
+  tasks:
+    - name: Cài đặt hệ thống và Deploy App (Dùng RAW để tránh lỗi Python)
+      raw: |
+        # 1. Cài đặt Docker và Git
+        sudo yum update -y
+        sudo yum install -y docker git
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -a -G docker ec2-user
+
+        # 2. Xử lý Repo
+        cd /home/ec2-user
+        sudo rm -rf med-project
+        git clone https://github.com/mrvan-design/demo-yte.git med-project
+        
+        # 3. Build và Chạy App với đầy đủ biến môi trường
+        cd /home/ec2-user/med-project/app
+        sudo docker stop med-web || true
+        sudo docker rm med-web || true
+        sudo docker build -t medical-app .
+        
+        # CHÈN BIẾN MÔI TRƯỜNG VÀO ĐÂY
+        sudo docker run -d --name med-web --restart always \
+          -p 80:8080 \
+          -e DB_HOST="terraform-20260219104122470000000002.c50242wu0b3r.ap-southeast-1.rds.amazonaws.com" \
+          -e DB_PORT="5432" \
+          -e DB_NAME="postgres" \
+          -e DB_USER="your_db_username" \
+          -e DB_PASSWORD="your_db_password" \
+          -e S3_BUCKET_NAME="medical-data-20260219091722025000000001" \
+          -e AWS_REGION="ap-southeast-1" \
+          -e KMS_KEY_ARN="arn:aws:kms:ap-southeast-1:255404879889:key/38cb301a-64a9-4ef6-b2bb-5f7d5ac86243" \
+          medical-app

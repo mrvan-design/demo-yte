@@ -9,11 +9,16 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: docker_logs
-    docker_sd_configs:
-      - host: unix:///var/run/docker.sock
-        refresh_interval: 10s
+  # Cấu hình này biến Promtail thành một trạm thu nhận log từ xa
+  - job_name: syslog_from_ec2
+    syslog:
+      listen_address: 0.0.0.0:1514 # Promtail sẽ mở cổng này để "hứng" log từ EC2 bắn về
+      idle_timeout: 60s
+      label_structured_data: yes
+      labels:
+        job: "medical-api-ec2"
+        host: "ec2-instance"
+
     relabel_configs:
-      - source_labels: ['__meta_docker_container_name']
-        regex: '/(.*)'
-        target_label: 'container'
+      - source_labels: ['__syslog_message_hostname']
+        target_label: 'instance'

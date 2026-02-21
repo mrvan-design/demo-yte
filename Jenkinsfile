@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         // Đã cập nhật khớp với main.tf (FastAPI thường dùng 8000)
-        APP_PORT = "8000" 
+        APP_PORT = "80" 
         EC2_IP = "54.169.9.106" 
         DOCKER_REPO = "username/demo-yte"
         DOCKERHUB_CRED = "dockerhub-credentials-id"

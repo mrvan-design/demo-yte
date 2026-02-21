@@ -1,49 +1,73 @@
+
+networks:
+  monitoring-tier:
+    driver: bridge
+
+# Khai báo các ổ đĩa ảo để lưu trữ dữ liệu bền vững
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  jenkins_home: # Lưu trữ toàn bộ job, plugin và config của Jenkins
+
 services:
-  api:
-    image: medical-api-image  # Chỉ để dòng này, không để dòng build
-    container_name: medical-api
-    ports:
-      - "8000:8000"
-    logging:
-      driver: "json-file"
-      options:
-        tag: "{{.Name}}"
-    # Các service khác (prometheus, loki, grafana...) giữ nguyên bên dưới
-  # Prometheus - Truy cập tại localhost:9090
   prometheus:
     image: prom/prometheus:latest
-    container_name: medical-prometheus
+    container_name: prometheus
+    networks:
+      - monitoring-tier
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    restart: unless-stopped
 
-  # Loki - Lưu trữ log
   loki:
     image: grafana/loki:latest
-    container_name: medical-loki
+    container_name: loki
+    networks:
+      - monitoring-tier
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    restart: unless-stopped
 
-  # Promtail - Thu thập log từ Docker và đẩy về Loki
   promtail:
     image: grafana/promtail:latest
-    container_name: medical-promtail
+    container_name: promtail
+    networks:
+      - monitoring-tier
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock # Đọc log trực tiếp từ máy host
     command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
 
-  # Grafana - Truy cập tại localhost:3000
   grafana:
     image: grafana/grafana:latest
-    container_name: medical-grafana
+    container_name: grafana
+    networks:
+      - monitoring-tier
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-    depends_on:
-      - prometheus
-      - loki
+      - GF_SECURITY_ADMIN_PASSWORD=vantai3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-local
+    user: root
+    networks:
+      - monitoring-tier
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home # Dữ liệu Jenkins nằm ở đây
+      - /var/run/docker.sock:/var/run/docker.sock # Để Jenkins gọi Docker máy local
+    restart: unless-stopped

@@ -2,6 +2,10 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'medical-api'
+  - job_name: 'demo-motoring'
     static_configs:
-      - targets: ['api:8000']
+      # Jenkins sẽ dùng lệnh 'sed' để thay thế 'EC2_PUBLIC_IP' bằng IP thật
+      - targets: ['localhost:9090']
+  - job_name: 'Node Exporter Full'
+    static_configs:
+      - targets: ['node-exporter:9100']

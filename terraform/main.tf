@@ -52,7 +52,7 @@ resource "aws_kms_key" "medical_key" {
 }
 
 resource "aws_iam_role" "ec2_log_role" {
-  name = "healthcare-ec2-log-role"
+  name = "logrole-ec2"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -85,19 +85,27 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # LỰA CHỌN A: Mở port 5000 để truy cập trực tiếp vào App Flask
+  # Cổng 9090: CHO PROMETHEUS (Chỉ cho IP của bạn)
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = 9090
+    to_port     = 9090
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.my_ip] # <--- Dùng biến này để bảo mật
+  }
+
+  # Cổng 9100: CHO NODE EXPORTER (Chỉ cho IP của bạn)
+  ingress {
+    from_port   = 9100
+    to_port     = 9100
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip] # <--- Giám sát phần cứng an toàn
   }
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${var.my_ip}/32"]
+    cidr_blocks = [var.my_ip]
   }
 
   egress {
@@ -171,39 +179,7 @@ resource "aws_db_instance" "db" {
 }
 
 # --- COMPUTE ---
-resource "aws_instance" "web" {
-  ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = "t3.micro" # Đảm bảo Free Tier
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-  subnet_id              = aws_subnet.public_1.id
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
-  key_name               = var.key_name # Đảm bảo bạn đã tạo Key Pair này trên AWS
 
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo yum update -y
-              sudo yum install git -y
-              sudo amazon-linux-extras install docker -y
-              sudo service docker start
-              sudo systemctl enable docker
-              sudo usermod -a -G docker ec2-user
-              sudo mkdir -p /usr/local/lib/docker/cli-plugins/
-              sudo curl -SL https://github.com/docker/compose/releases/download/v2.26.1/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-              sudo ln -s /usr/local/lib/docker/cli-plugins/docker-compose /usr/bin/docker-compose
-              EOF
-
-  tags = { Name = "Medical-Web-Server" }
-}
-
-data "aws_ami" "amazon_linux_2" {
-  most_recent = true
-  owners      = ["amazon"]
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-}
 
 # --- MONITORING ---
 resource "aws_cloudwatch_log_group" "app_logs" {
