@@ -52,15 +52,7 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build("${DOCKER_REPO}:latest")
-                    docker.build("${DOCKER_REPO}:${IMAGE_TAG}")
-                }
-            }
-        }
-
+    
         stage('Image Security Scan - Trivy') {
     steps {
         script {
@@ -85,16 +77,28 @@ pipeline {
 }
 
 
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    docker.withRegistry('', "${DOCKERHUB_CRED}") {
-                        docker.image("${DOCKER_REPO}:latest").push()
-                        docker.image("${DOCKER_REPO}:${IMAGE_TAG}").push()
-                    }
-                }
-            }
+        stage('Build & Push Docker Image (amd64)') {
+         steps {
+            withCredentials([usernamePassword(
+             credentialsId: "${DOCKERHUB_CRED}",
+              usernameVariable: 'DOCKER_USER',
+                passwordVariable: 'DOCKER_PASS'
+        )]) {
+            sh """
+              echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            
+                docker buildx create --use || true
+            
+                 docker buildx build \
+                   --platform linux/amd64 \
+                   -t ${DOCKER_REPO}:latest \
+                  -t ${DOCKER_REPO}:${IMAGE_TAG} \
+                    --push .
+            """
         }
+    }
+}
+
 
        stage('Deploy to AWS EC2') {
     steps {
