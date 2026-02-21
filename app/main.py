@@ -37,7 +37,7 @@ def apply_medical_masking(image_bytes):
 # masked_image = apply_medical_masking(file_bytes)
 
 # --- CẤU HÌNH HỆ THỐNG ---
-UPLOAD_DIR = "static/uploads"
+UPLOAD_DIR = "/app/static"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 DATABASE_URL = "sqlite:///./medtrack.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
