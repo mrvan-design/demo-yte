@@ -37,47 +37,47 @@ pipeline {
             }
         }
 
-        stage('SCA Scan - Trivy FS') {
-           steps {
-             sh '''
-                echo "Running Trivy FS scan..."
-                 docker run --rm \
-               -v $WORKSPACE:/app \
+       stage('SCA Scan - Trivy FS') {
+        steps {
+           sh '''
+            echo "Running Trivy FS scan..."
+            docker run --rm \
+              -v $WORKSPACE:/app \
               -v trivy-cache:/root/.cache/ \
-               aquasec/trivy fs \
+              aquasec/trivy fs \
               --scanners vuln \
-                 --severity HIGH,CRITICAL \
-                  --exit-code 1 \
-                 /app
-             '''
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              /app
+        '''
     }
 }
-
-
-    
-        stage('Image Security Scan - Trivy') {
+ stage('Image Security Scan - Trivy') {
     steps {
         script {
             def status = sh(
                 script: """
-                docker run --rm \
-                  -v /var/run/docker.sock:/var/run/docker.sock \
-                  -v trivy-cache:/root/.cache/ \
-                  aquasec/trivy image \
-                  --severity HIGH,CRITICAL \
-                  --exit-code 1 \
-                  ${DOCKER_REPO}:latest
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      -v trivy-cache:/root/.cache/ \
+                      aquasec/trivy image \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 1 \
+                      ${DOCKER_REPO}:latest
                 """,
                 returnStatus: true
             )
 
             if (status != 0) {
-                echo "⚠️ Vulnerabilities detected, but continuing pipeline..."
+                echo "⚠️ Vulnerabilities detected in the image, but continuing pipeline..."
+                // Optionally fail the build if needed
+                // currentBuild.result = 'FAILURE'
+            } else {
+                echo "✅ No critical vulnerabilities found in the image."
             }
         }
     }
 }
-
 
         stage('Build & Push Docker Image (amd64)') {
          steps {
