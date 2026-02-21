@@ -17,11 +17,11 @@ pipeline {
         }
 
         stage('Static Analysis (Semgrep)') {
-            steps {
-                // Thêm --error để Jenkins dừng nếu code quá lỏng lẻo
-                sh 'docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep scan --config=auto --error'
-            }
-        }
+         steps {
+        // Thêm -u $(id -u) để tránh lỗi permission khi tạo file log
+            sh 'docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep scan --config=auto --error'
+    }
+}
 
         stage('SCA Scan (Trivy FS)') {
             steps {
