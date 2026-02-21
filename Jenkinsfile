@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         APP_PORT = "80"
-        EC2_IP = "54.169.9.106"
+        EC2_IP = "13.229.77.88"
         DOCKER_REPO = "vantaiz/demo-yte"
         DOCKERHUB_CRED = "dockerhub-credentials-id"
         IMAGE_TAG = "${BUILD_NUMBER}"
