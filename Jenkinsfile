@@ -143,9 +143,19 @@ pipeline {
     }
 
     // Example: fail the build if a security scan fails
+   
+   post {
+    success {
+        echo "✅ Deployment Successful!"
+        echo "App URL: http://${EC2_IP}"
+    }
+
     failure {
-        echo "❌ Pipeline failed due to security vulnerabilities!"
-        currentBuild.result = 'FAILURE'
+        echo "❌ Pipeline Failed - Check security scan results."
+    }
+
+    always {
+        cleanWs()
     }
 }
 
