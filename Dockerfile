@@ -1,9 +1,13 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+# Cập nhật hệ thống
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get dist-upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Cập nhật apt và nâng cấp các package hệ thống
-RUN apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y
+WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -11,12 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Tạo user không phải root
 RUN useradd -m appuser
 
-# Copy source code
+# Copy source
 COPY . .
 
-# Tạo thư mục static và cấp quyền cho appuser
-RUN mkdir -p /app/static \
-    && chown -R appuser:appuser /app
+RUN mkdir -p /app/static && \
+    chown -R appuser:appuser /app
 
 USER appuser
 
