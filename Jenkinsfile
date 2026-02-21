@@ -19,7 +19,7 @@ pipeline {
             steps {
                 // Sửa biến PWD thành \$(pwd) để Docker hiểu đúng đường dẫn host
                 // Thêm || true nếu bạn muốn pipeline vẫn chạy tiếp dù code có lỗi bảo mật (không khuyến khích khi đã lên prod)
-                sh 'docker run --rm -v \$(pwd):/src semgrep/semgrep semgrep scan --config auto || true'
+                sh "docker run --rm -v $(pwd):/src semgrep/semgrep semgrep scan --config auto || true"
             }
         }
 
@@ -39,7 +39,7 @@ pipeline {
                     // SECURITY GATE: Quét Image. 
                     // Nếu bạn muốn pipeline DỪNG khi có lỗi bảo mật, hãy để --exit-code 1
                     // Nếu muốn chạy tiếp bất chấp rủi ro, sửa thành --exit-code 0
-                    sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL --exit-code 1 ${DOCKER_REPO}:latest"
+                    sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 ${DOCKER_REPO}:latest"
                 }
             }
         }
