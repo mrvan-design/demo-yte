@@ -16,13 +16,16 @@ pipeline {
         }
 
         stage('Static Analysis (Semgrep)') {
-         steps {
-            sh '''
-            pip install semgrep
-               semgrep scan --config auto || true
-               '''
+         agent {
+           docker {
+            image 'semgrep/semgrep'
+        }
+    }
+          steps {
+            sh 'semgrep scan --config auto || true'
     }
 }
+
 
         stage('SCA Scan (Trivy FS)') {
             steps {
