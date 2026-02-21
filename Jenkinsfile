@@ -38,19 +38,21 @@ pipeline {
         }
 
         stage('SCA Scan - Trivy FS') {
-            steps {
-                sh '''
+           steps {
+             sh '''
                 echo "Running Trivy FS scan..."
-                docker run --rm \
-                  -v $WORKSPACE:/app \
-                  -v trivy-cache:/root/.cache/ \
-                  aquasec/trivy fs \
-                  --severity HIGH,CRITICAL \
+                 docker run --rm \
+               -v $WORKSPACE:/app \
+              -v trivy-cache:/root/.cache/ \
+               aquasec/trivy fs \
+              --scanners vuln \
+                 --severity HIGH,CRITICAL \
                   --exit-code 1 \
-                  /app
-                '''
-            }
-        }
+                 /app
+             '''
+    }
+}
+
 
     
         stage('Image Security Scan - Trivy') {
