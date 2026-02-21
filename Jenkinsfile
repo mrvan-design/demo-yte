@@ -106,7 +106,7 @@ pipeline {
                 docker stop healthcare-app || true
                 docker rm healthcare-app || true
                 docker run -d \
-                    -p 80:80 \
+                    -p 80:8080 \
                     --name healthcare-app \
                     --restart unless-stopped \
                     ${DOCKER_REPO}:latest
