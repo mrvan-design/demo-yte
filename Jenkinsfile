@@ -96,25 +96,26 @@ pipeline {
             }
         }
 
-        stage('Deploy to AWS EC2') {
-            steps {
-                sshagent(['AWS_SSH_KEY']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "
-                        docker pull ${DOCKER_REPO}:latest &&
-                        docker stop healthcare-app || true &&
-                        docker rm healthcare-app || true &&
-                        docker run -d \
-                            -p ${APP_PORT}:${APP_PORT} \
-                            --name healthcare-app \
-                            --restart unless-stopped \
-                            ${DOCKER_REPO}:latest
-                    "
-                    """
-                }
-            }
+       stage('Deploy to AWS EC2') {
+    steps {
+        sshagent(['AWS_SSH_KEY']) {
+            sh """
+            ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} '
+                set -e
+                docker pull ${DOCKER_REPO}:latest
+                docker stop healthcare-app || true
+                docker rm healthcare-app || true
+                docker run -d \
+                    -p 80:80 \
+                    --name healthcare-app \
+                    --restart unless-stopped \
+                    ${DOCKER_REPO}:latest
+            '
+            """
         }
     }
+}
+
 
     post {
         success {
