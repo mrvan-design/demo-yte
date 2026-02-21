@@ -1,35 +1,21 @@
-# ===== BASE IMAGE =====
+# Step 1: Use an official Python image
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
+# Step 2: Set the working directory
 WORKDIR /app
 
-# Chỉ cài những lib thật sự cần cho runtime
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libpq5 \
-    libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements trước để tận dụng cache layer
+# Step 3: Copy requirements file and install dependencies
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Tăng timeout + không cache pip
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --default-timeout=300 -r requirements.txt
+# Step 4: Create the 'static' directory and set proper permissions
+RUN mkdir -p /app/static && chmod -R 777 /app/static
 
-# Tạo user non-root
-RUN useradd -m -u 1001 appuser
+# Step 5: Copy the rest of the application
+COPY . .
 
-# Copy source code
-COPY --chown=appuser:appuser app ./app
-
-USER appuser
-
+# Step 6: Expose port
 EXPOSE 8080
 
+# Step 7: Run the application using Uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-
