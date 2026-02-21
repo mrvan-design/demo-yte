@@ -1,52 +1,78 @@
 pipeline {
     agent any
-    
+
     environment {
-        APP_PORT = "80" 
-        EC2_IP = "54.169.9.106" 
+        APP_PORT = "80"
+        EC2_IP = "54.169.9.106"
         DOCKER_REPO = "vantaiz/demo-yte"
-        DOCKERHUB_CRED = "dockerhub-credentials-id" // Đảm bảo ID này khớp trong Jenkins Credentials
+        DOCKERHUB_CRED = "dockerhub-credentials-id"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+    }
+
+    options {
+        timestamps()
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-   stage('Static Analysis (Semgrep)') {
-    steps {
-        sh '''
-        docker run --rm \
-          -v $WORKSPACE:/src \
-          semgrep/semgrep \
-          semgrep scan --config auto --no-git-ignore /src || true
-        '''
-    }
-}
-
-
-
-
-        stage('SCA Scan (Trivy FS)') {
+        stage('Static Analysis - Semgrep') {
             steps {
-                // Quét file hệ thống (source code)
-                sh "docker run --rm -v \$(pwd):/app aquasec/trivy fs --severity HIGH,CRITICAL --exit-code 0 /app"
+                sh '''
+                echo "Running Semgrep..."
+                docker run --rm \
+                  -v $WORKSPACE:/src \
+                  semgrep/semgrep \
+                  semgrep scan \
+                  --config auto \
+                  --no-git-ignore \
+                  --severity ERROR \
+                  /src
+                '''
             }
         }
 
-        stage('Build & Image Scan') {
+        stage('SCA Scan - Trivy FS') {
+            steps {
+                sh '''
+                echo "Running Trivy FS scan..."
+                docker run --rm \
+                  -v $WORKSPACE:/app \
+                  -v trivy-cache:/root/.cache/ \
+                  aquasec/trivy fs \
+                  --severity HIGH,CRITICAL \
+                  --exit-code 1 \
+                  /app
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    // Build image
-                    def appImage = docker.build("${DOCKER_REPO}:latest")
-                    
-                    // SECURITY GATE: Quét Image. 
-                    // Nếu bạn muốn pipeline DỪNG khi có lỗi bảo mật, hãy để --exit-code 1
-                    // Nếu muốn chạy tiếp bất chấp rủi ro, sửa thành --exit-code 0
-                    sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL --exit-code 0 ${DOCKER_REPO}:latest"
+                    docker.build("${DOCKER_REPO}:latest")
+                    docker.build("${DOCKER_REPO}:${IMAGE_TAG}")
                 }
+            }
+        }
+
+        stage('Image Security Scan - Trivy') {
+            steps {
+                sh """
+                echo "Running Trivy image scan..."
+                docker run --rm \
+                  -v /var/run/docker.sock:/var/run/docker.sock \
+                  -v trivy-cache:/root/.cache/ \
+                  aquasec/trivy image \
+                  --severity HIGH,CRITICAL \
+                  --exit-code 1 \
+                  ${DOCKER_REPO}:latest
+                """
             }
         }
 
@@ -55,7 +81,7 @@ pipeline {
                 script {
                     docker.withRegistry('', "${DOCKERHUB_CRED}") {
                         docker.image("${DOCKER_REPO}:latest").push()
-                        docker.image("${DOCKER_REPO}:latest").push("${env.BUILD_NUMBER}")
+                        docker.image("${DOCKER_REPO}:${IMAGE_TAG}").push()
                     }
                 }
             }
@@ -63,34 +89,35 @@ pipeline {
 
         stage('Deploy to AWS EC2') {
             steps {
-                // Đảm bảo bạn đã thêm Private Key của EC2 vào Jenkins với ID 'AWS_SSH_KEY'
                 sshagent(['AWS_SSH_KEY']) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no ec2-user@${env.EC2_IP} "
-                        docker pull ${env.DOCKER_REPO}:latest
-                        docker stop healthcare-app || true
-                        docker rm healthcare-app || true
+                    ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "
+                        docker pull ${DOCKER_REPO}:latest &&
+                        docker stop healthcare-app || true &&
+                        docker rm healthcare-app || true &&
                         docker run -d \
-                            -p ${env.APP_PORT}:${env.APP_PORT} \
+                            -p ${APP_PORT}:${APP_PORT} \
                             --name healthcare-app \
                             --restart unless-stopped \
-                            ${env.DOCKER_REPO}:latest
+                            ${DOCKER_REPO}:latest
                     "
                     """
                 }
             }
         }
     }
-    
+
     post {
         success {
-            echo "✅ Deployment Successful! App is live at http://${env.EC2_IP}"
+            echo "✅ Deployment Successful!"
+            echo "App URL: http://${EC2_IP}"
         }
         failure {
-            echo "❌ Pipeline Failed. Check logs for Semgrep or Trivy findings!"
+            echo "❌ Pipeline Failed - Check security scan results."
         }
         always {
             cleanWs()
         }
     }
 }
+
