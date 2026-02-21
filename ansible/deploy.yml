@@ -21,7 +21,7 @@
         git clone https://github.com/mrvan-design/demo-yte.git med-project
         
         # 3. Build và Chạy App với đầy đủ biến môi trường
-        cd /home/ec2-user/med-project/app
+        cd /home/ec2-user/med-project
         sudo docker stop med-web || true
         sudo docker rm med-web || true
         sudo docker build -t medical-app .
