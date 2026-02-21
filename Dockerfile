@@ -1,43 +1,35 @@
-# -------- STAGE 1: BUILDER --------
-FROM python:3.12-slim-bookworm AS builder
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /build
-
-# Thêm upgrade để vá lỗi hệ thống
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends gcc libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --upgrade pip setuptools wheel && \
-    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
-
-
-# -------- STAGE 2: FINAL --------
-FROM python:3.12-slim-bookworm
+# ===== BASE IMAGE =====
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Quan trọng: Stage này cũng cần upgrade để vá lỗi Runtime
-RUN apt-get update && apt-get upgrade -y && \
+# Chỉ cài những lib thật sự cần cho runtime
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libglib2.0-0 libsm6 libxext6 libxrender1 libgl1 libpq5 && \
-    rm -rf /var/lib/apt/lists/*
+    libpq5 \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -u 1001 medicaluser
-COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+# Copy requirements trước để tận dụng cache layer
+COPY requirements.txt .
 
-COPY --chown=medicaluser:medicaluser . .
+# Tăng timeout + không cache pip
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=300 -r requirements.txt
 
-USER medicaluser
+# Tạo user non-root
+RUN useradd -m -u 1001 appuser
+
+# Copy source code
+COPY --chown=appuser:appuser app ./app
+
+USER appuser
+
 EXPOSE 8080
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
