@@ -26,10 +26,13 @@ pipeline {
         }
 
         stage('Checkout Source') {
-            steps {
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
-            }
-        }
+    steps {
+        // Thêm credentialsId vào đây (Dùng ID của GitHub Token hoặc SSH Key bạn đã tạo)
+        git branch: "${GIT_BRANCH}", 
+            url: "${GIT_REPO}", 
+            credentialsId: 'github-token-creds' 
+    }
+}
 
         stage('Verify Python Source') {
             steps {
@@ -49,26 +52,14 @@ pipeline {
         }
 
 stage('Semgrep Scan') {
+    agent {
+        docker {
+            image 'returntocorp/semgrep'
+            args  '-v $WORKSPACE:/src'
+        }
+    }
     steps {
-        sh '''
-        echo "==== SEMGREP SCAN START ===="
-
-        echo "Workspace:"
-        pwd
-        ls -la
-        echo "App folder:"
-        ls -la app
-
-        docker run --rm \
-          -v "$WORKSPACE":/src \
-          returntocorp/semgrep \
-          semgrep /src/app/ \
-          --config p/python \
-          --no-git-ignore \
-          --disable-version-check
-
-        echo "==== SEMGREP SCAN DONE ===="
-        '''
+        sh 'semgrep /src/app/ --config p/python --no-git-ignore --disable-version-check'
     }
 }
         stage('Docker Login') {
