@@ -1,0 +1,73 @@
+
+networks:
+  monitoring-tier:
+    driver: bridge
+
+# Khai báo các ổ đĩa ảo để lưu trữ dữ liệu bền vững
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  jenkins_home: # Lưu trữ toàn bộ job, plugin và config của Jenkins
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    networks:
+      - monitoring-tier
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    networks:
+      - monitoring-tier
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    restart: unless-stopped
+
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: fluent-bit
+    networks:
+      - monitoring-tier
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - monitoring-tier
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=vantai3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-local
+    user: root
+    networks:
+      - monitoring-tier
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home # Dữ liệu Jenkins nằm ở đây
+      - /var/run/docker.sock:/var/run/docker.sock # Để Jenkins gọi Docker máy local
+    restart: unless-stopped
